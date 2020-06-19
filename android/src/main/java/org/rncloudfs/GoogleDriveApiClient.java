@@ -260,6 +260,19 @@ public class GoogleDriveApiClient {
         }
     }
 
+    public boolean fileExists(DriveFolder driveFolder, String filename) {
+        DriveApi.MetadataBufferResult childrenBuffer = driveFolder.listChildren(googleApiClient).await();
+        try {
+            for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
+                if (metadata.getTitle().equals(filename))
+                    metadata.getEmbedLink()
+            }
+            return false;
+        } finally {
+            childrenBuffer.release();
+        }
+    }
+
     public WritableMap listFiles(boolean useDocumentsFolder, List<String> paths) throws NotFoundException {
         WritableMap data = new WritableNativeMap();
 
