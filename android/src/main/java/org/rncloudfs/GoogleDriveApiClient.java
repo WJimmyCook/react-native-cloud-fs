@@ -287,7 +287,7 @@ public class GoogleDriveApiClient {
                                     builder.append(line).append("\n");
                                 }
                                 return builder.toString();
-                            } catch Exception(e) {
+                            } catch (Exception e) {
                                 return "";
                             } finally {
                                 Drive.getDriveResourceClient().discardContents(contents);
