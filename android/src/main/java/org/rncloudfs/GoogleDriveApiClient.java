@@ -2,11 +2,13 @@ package org.rncloudfs;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
@@ -21,15 +23,16 @@ import com.google.android.gms.drive.DriveFile;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.drive.MetadataChangeSet;
-import com.google.android.gms.drive.Task;
+import com.google.android.gms.tasks.Continuation;
+import com.google.android.gms.tasks.Task;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.lang.StringBuilder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.io.BufferedReader;
-import java.java.io.InputStreamReader;
-import java.lang.StringBuilder;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -211,7 +214,7 @@ public class GoogleDriveApiClient {
     }
 
     public String createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename) throws IOException {
-        return jreateFile(driveFolder, input, filename, null);
+        return createFile(driveFolder, input, filename, null);
     }
 
     public String createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename, String mimeType) throws IOException {
@@ -270,17 +273,18 @@ public class GoogleDriveApiClient {
         try {
             for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
                 if (metadata.getTitle().equals(filename)){
-
-                    // Returns the file using id from metadata
+                    // Assumes we are already logged in from our react context, otherwise this is far
+                    // from error proof
+                    GoogleSignInAccount signInAccount = GoogleSignIn.getLastSignedInAccount(this.reactContext);
                     DriveFile driveFile = metadata.getDriveId().asDriveFile();
-                    // Open the file
-                    Task<DriveContents> task = Drive.getDriveResourceClient().openFile(driveFile, DriveFile.MODE_READ_ONLY);
+                    Task<DriveContents> task = Drive.getDriveResourceClient(this.reactContext, signInAccount).openFile(driveFile, DriveFile.MODE_READ_ONLY);
                     // Using reference https://stackoverflow.com/questions/22684887/read-file-from-app-folder-in-android-from-google-drive
-                    Task<String> contentTask = task.continueWith(new Continuation<String, DriveContents>() {
+                    Task<String> contentTask = task.continueWith(new Continuation<DriveContents, String>() {
                         @Override
                         public String then(@NonNull Task<DriveContents> task) {
                             DriveContents contents = task.getResult();
-                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(contents.getInputStream()))) {
+                            try {
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(contents.getInputStream()));
                                 StringBuilder builder = new StringBuilder();
                                 String line;
                                 while ((line = reader.readLine()) != null) {
@@ -290,13 +294,13 @@ public class GoogleDriveApiClient {
                             } catch (Exception e) {
                                 return "";
                             } finally {
-                                Drive.getDriveResourceClient().discardContents(contents);
+                                GoogleSignInAccount signInAccount = GoogleSignIn.getLastSignedInAccount(GoogleDriveApiClient.this.reactContext);
+                                Drive.getDriveResourceClient(GoogleDriveApiClient.this.reactContext, signInAccount).discardContents(contents);
                             }
                         }
                     });
                     // No error checking right now
                     // Get this to work, then add error checking later
-
                     return contentTask.getResult();
                 }
             }
@@ -304,15 +308,6 @@ public class GoogleDriveApiClient {
         } finally {
             childrenBuffer.release();
             return "";
-        }
-    }
-
-    public String readStringFromURL(String requestURL) throws IOException {
-        try (Scanner scanner = new Scanner(new URL(requestURL).openStream(),
-                StandardCharsets.UTF_8.toString()))
-        {
-            scanner.useDelimiter("\\A");
-            return scanner.hasNext() ? scanner.next() : "";
         }
     }
 

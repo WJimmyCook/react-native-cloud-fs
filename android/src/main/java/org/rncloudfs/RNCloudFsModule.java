@@ -9,8 +9,8 @@ import android.content.IntentSender;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 
@@ -532,12 +532,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         @Override
         public void onConnected(@Nullable Bundle bundle) {
             final GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(RNCloudFsModule.this.googleApiClient, reactContext);
+            final DriveFolder parentFolder = this.useDocumentsFolder ? googleDriveApiClient.documentsFolder() : googleDriveApiClient.appFolder();
 
             AsyncTask.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        String content = googleDriveApiClient.fileLoad(useDocumentsFolder, resolve(path));
+                        String content = googleDriveApiClient.fileLoad(parentFolder, path);
                         promise.resolve(content);
                     } catch (Exception e) {
                         promise.reject("error", e);
