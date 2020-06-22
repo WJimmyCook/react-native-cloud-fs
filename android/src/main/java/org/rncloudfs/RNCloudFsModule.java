@@ -537,7 +537,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 @Override
                 public void run() {
                     try {
-                        String content = googleDriveApiClient.fileExists(useDocumentsFolder, resolve(path));
+                        String content = googleDriveApiClient.fileLoad(useDocumentsFolder, resolve(path));
                         promise.resolve(content);
                     } catch (Exception e) {
                         promise.reject("error", e);
