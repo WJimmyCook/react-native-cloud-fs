@@ -532,12 +532,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         @Override
         public void onConnected(@Nullable Bundle bundle) {
             final GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(RNCloudFsModule.this.googleApiClient, reactContext);
-            final DriveFolder parentFolder = this.useDocumentsFolder ? googleDriveApiClient.documentsFolder() : googleDriveApiClient.appFolder();
 
             AsyncTask.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
+                        DriveFolder parentFolder = useDocumentsFolder ? googleDriveApiClient.documentsFolder() : googleDriveApiClient.appFolder();
+
                         String content = googleDriveApiClient.fileLoad(parentFolder, path);
                         promise.resolve(content);
                     } catch (Exception e) {
