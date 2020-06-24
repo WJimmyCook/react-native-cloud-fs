@@ -7,8 +7,6 @@ import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.google.android.gms.auth.api.signin.GoogleSignIn;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
@@ -23,8 +21,6 @@ import com.google.android.gms.drive.DriveFile;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.drive.MetadataChangeSet;
-import com.google.android.gms.tasks.Continuation;
-import com.google.android.gms.tasks.Task;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -272,58 +268,35 @@ public class GoogleDriveApiClient {
 
     public String fileLoad(DriveFolder driveFolder, String filename) {
         DriveApi.MetadataBufferResult childrenBuffer = driveFolder.listChildren(googleApiClient).await();
-        StringBuilder log = new StringBuilder();
         try {
-            log.append("Begin for loop\n");
             for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
-                log.append("Found metadata"+metadata.getTitle()+"\n");
-                if (metadata.getTitle().equals(filename)){
-                    log.append("Metadata MATCH!\n");
-                    // Assumes we are already logged in from our react context, otherwise this is far
-                    // from error proof
-                    GoogleSignInAccount signInAccount = GoogleSignIn.getLastSignedInAccount(this.reactContext);
-                    log.append("Finished getting signInAccount\n");
+                if (metadata.getTitle().equals(filename)) {
                     DriveFile driveFile = metadata.getDriveId().asDriveFile();
-                    log.append("Finished getting driveFile\n");
-                    Task<DriveContents> task = Drive.getDriveResourceClient(this.reactContext, signInAccount).openFile(driveFile, DriveFile.MODE_READ_ONLY);
-                    log.append("Finished getting task, begin continueWith block\n");
-                    // Using reference https://stackoverflow.com/questions/22684887/read-file-from-app-folder-in-android-from-google-drive
-                    Task<String> contentTask = task.continueWith(new Continuation<DriveContents, String>() {
-                        @Override
-                        public String then(@NonNull Task<DriveContents> task) {
-                            DriveContents contents = task.getResult();
-                            try {
-                                BufferedReader reader = new BufferedReader(new InputStreamReader(contents.getInputStream()));
-                                StringBuilder builder = new StringBuilder();
-                                String line;
-                                while ((line = reader.readLine()) != null) {
-                                    builder.append(line).append("\n");
-                                }
-                                return builder.toString();
-                            } catch (Exception e) {
-                                StringWriter sw = new StringWriter();
-                                PrintWriter pw = new PrintWriter(sw);
-                                e.printStackTrace(pw);
-                                return sw.toString();
-                            } finally {
-                                GoogleSignInAccount signInAccount = GoogleSignIn.getLastSignedInAccount(GoogleDriveApiClient.this.reactContext);
-                                Drive.getDriveResourceClient(GoogleDriveApiClient.this.reactContext, signInAccount).discardContents(contents);
+                    DriveApi.DriveContentsResult result = driveFile.open(googleApiClient, DriveFile.MODE_READ_ONLY, null).await();
+                    DriveContents driveContents = result.getDriveContents();
+                    try {
+                        if (driveContents != null) {
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(driveContents.getInputStream()));
+                            StringBuilder builder = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                builder.append(line).append("\n");
                             }
+                            return builder.toString();
                         }
-                    });
-                    String results = contentTask.getResult();
-                    log.append("Finished getting results:\n"+results);
-                    // No error checking right now
-                    // Get this to work, then add error checking later
-                    return results;
+                    } finally {
+                        if (driveContents != null) {
+                            driveContents.discard(googleApiClient);
+                        }
+                    }
+                    return "Seed file is not found.";
                 }
             }
-            return "error, metadata not found\n" + log.toString();
+            return "Seed file is not found.";
+        } catch (Exception e) {
+            return "Cannot load seed file.";
         } finally {
             childrenBuffer.release();
-            // adding return to finally will cause us to lose exceptions and override the previous return result...
-            // try without this
-            // return log.toString();
         }
     }
 
