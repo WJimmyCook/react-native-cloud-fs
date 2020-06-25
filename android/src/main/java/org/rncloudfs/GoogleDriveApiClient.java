@@ -280,7 +280,7 @@ public class GoogleDriveApiClient {
                             StringBuilder builder = new StringBuilder();
                             String line;
                             while ((line = reader.readLine()) != null) {
-                                builder.append(line).append("\n");
+                                builder.append(line);
                             }
                             return builder.toString();
                         }
@@ -289,7 +289,6 @@ public class GoogleDriveApiClient {
                             driveContents.discard(googleApiClient);
                         }
                     }
-                    return "Seed file is not found.";
                 }
             }
             return "Seed file is not found.";
