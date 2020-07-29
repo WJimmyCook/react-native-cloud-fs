@@ -404,4 +404,66 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
     return [NSURL fileURLWithPath:resourcePath];
 }
 
+- (NSArray *)parseMetaQueryResult: (NSMetadataQuery *)query {
+  NSMutableArray *res = [NSMutableArray array];
+  [[query results] enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    NSNumber *isDownloaded = [obj valueForAttribute:NSMetadataUbiquitousItemDownloadingStatusDownloaded];
+    if(!isDownloaded)isDownloaded = [NSNumber numberWithInt:-1];
+    NSNumber *isUploaded = [obj valueForAttribute:NSMetadataUbiquitousItemIsUploadedKey];
+    if(!isUploaded)isUploaded = [NSNumber numberWithInt:-1];
+    
+//    NSLog(@"download current key %@", NSMetadataUbiquitousItemDownloadingStatusCurrent);
+    [res addObject:@{
+                     @"path": [obj valueForAttribute:NSMetadataItemPathKey],
+                     @"filename": [obj valueForAttribute:NSMetadataItemFSNameKey],
+                     @"isUploaded": isUploaded,
+                     @"isDownloaded": isDownloaded,
+                     @"downloadStatus": [obj valueForAttribute:NSMetadataUbiquitousItemDownloadingStatusKey]
+                     }];
+  }];
+  return res;
+}
+
+- (NSMetadataQuery *)metaQueryWithPath: (NSString *)path {
+  
+  NSMetadataQuery *query = [[NSMetadataQuery alloc] init];
+  [query setSearchScopes:@[NSMetadataQueryUbiquitousDocumentsScope]];
+  [query setPredicate:[NSPredicate predicateWithFormat:@"%K BEGINSWITH %@", NSMetadataItemPathKey, path]];
+  return query;
+}
+
+- (NSArray *)queryDidFinishGathering:(NSMetadataQuery *)query {
+  NSMutableArray *res = [NSMutableArray array];
+  [query enumerateResultsUsingBlock:^(id  _Nonnull result, NSUInteger idx, BOOL * _Nonnull stop) {
+    NSNumber *createAt = [self getDateNumber:[result valueForAttribute:NSMetadataItemFSCreationDateKey]];
+    NSNumber *modifyAt = [self getDateNumber:[result valueForAttribute:NSMetadataItemFSContentChangeDateKey]];
+    NSNumber *size = [result valueForAttribute:NSMetadataItemFSSizeKey];
+    if(!size) size = [NSNumber numberWithInt:-1];
+    NSString *path = [result valueForAttribute:NSMetadataItemPathKey];
+    NSNumber *exists = [NSNumber numberWithBool:[[[NSFileManager alloc] init] fileExistsAtPath:path]] ;
+    
+    NSDictionary *item = @{
+                           @"path": path,
+                           @"name": [result valueForAttribute:NSMetadataItemFSNameKey],
+                           @"createAt": createAt,
+                           @"modifyAt": modifyAt,
+                           @"size": size,
+                           @"downloaded": exists
+//                           @"downloaded": [result valueForAttribute:NSMetadataUbiquitousItemPercentDownloadedKey]
+                           };
+    [res addObject:item];
+//    NSLog(@"meta item %@", result);
+  }];
+  return res;
+//  [[query results] enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+//    
+//  }];
+//  NSLog(@"did finish observe %@", res);
+  
+//  [query disableUpdates];
+//  [query stopQuery];
+  
+}
+
+
 @end
