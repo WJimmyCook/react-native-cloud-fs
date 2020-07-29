@@ -8,7 +8,6 @@
 #endif
 #import "RCTEventDispatcher.h"
 #import "RCTUtils.h"
-#import <AssetsLibrary/AssetsLibrary.h>
 #import "RCTLog.h"
 
 @implementation RNCloudFs
@@ -251,29 +250,29 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
     }
 
     if([sourceUri hasPrefix:@"assets-library"]){
-        ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
+//         ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
 
-        [library assetForURL:[NSURL URLWithString:sourceUri] resultBlock:^(ALAsset *asset) {
+//         [library assetForURL:[NSURL URLWithString:sourceUri] resultBlock:^(ALAsset *asset) {
 
-            ALAssetRepresentation *rep = [asset defaultRepresentation];
+//             ALAssetRepresentation *rep = [asset defaultRepresentation];
 
-            Byte *buffer = (Byte*)malloc(rep.size);
-            NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
-            NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
+//             Byte *buffer = (Byte*)malloc(rep.size);
+//             NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
+//             NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
 
-            if (data) {
-                NSString *filename = [sourceUri lastPathComponent];
-                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
-                [data writeToFile:tempFile atomically:YES];
-                [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
-            } else {
-                RCTLogTrace(@"source file does not exist %@", sourceUri);
-                return reject(@"error", [NSString stringWithFormat:@"failed to copy asset '%@'", sourceUri], nil);
-            }
-        } failureBlock:^(NSError *error) {
-            RCTLogTrace(@"source file does not exist %@", sourceUri);
-            return reject(@"error", error.description, nil);
-        }];
+//             if (data) {
+//                 NSString *filename = [sourceUri lastPathComponent];
+//                 NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+//                 [data writeToFile:tempFile atomically:YES];
+//                 [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
+//             } else {
+//                 RCTLogTrace(@"source file does not exist %@", sourceUri);
+//                 return reject(@"error", [NSString stringWithFormat:@"failed to copy asset '%@'", sourceUri], nil);
+//             }
+//         } failureBlock:^(NSError *error) {
+//             RCTLogTrace(@"source file does not exist %@", sourceUri);
+//             return reject(@"error", error.description, nil);
+//         }];
     } else if ([sourceUri hasPrefix:@"file:/"] || [sourceUri hasPrefix:@"/"]) {
         NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:nil];
         NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
@@ -465,5 +464,8 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
   
 }
 
+- (NSNumber *)getDateNumber: (id)obj{
+  return [NSNumber numberWithDouble: [ obj timeIntervalSince1970] ];
+}
 
 @end
