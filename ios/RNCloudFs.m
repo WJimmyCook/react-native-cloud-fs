@@ -90,6 +90,59 @@ RCT_EXPORT_METHOD(readFile:(NSDictionary *)options
     }
 }
 
+RCT_EXPORT_METHOD(downloadUbiquitousPath:(NSString *)path :(RCTResponseSenderBlock)callback){
+  
+  dispatch_sync(dispatch_get_main_queue(), ^{
+    
+    NSMetadataQuery *query = [self metaQueryWithPath:path];
+//    NSLog(@"try get download update status %@", path);
+    
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSMetadataQueryDidUpdateNotification object:query queue:nil usingBlock:^(NSNotification * _Nonnull note) {
+      [[query results] enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        NSString *filename =[obj valueForAttribute:NSMetadataItemFSNameKey];
+        if (![[path lastPathComponent] isEqualToString:filename]) { return; }
+        
+        NSDictionary *res = [[self parseMetaQueryResult:query] objectAtIndex:idx];
+        if([res valueForKey:@"isDownloaded"]){
+          callback(@[ @NO, res ]); [query disableUpdates];
+        }
+        //      NSDictionary *result = [[self parseMetaQueryResult:query] objectAtIndex:0];
+        //      NSLog(@"download update %@", result);
+        
+      }];
+    }];
+     
+      
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSMetadataQueryDidFinishGatheringNotification object:query queue:nil usingBlock:^(NSNotification * _Nonnull note) {
+      [[query results] enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        
+        NSString *filename =[obj valueForAttribute:NSMetadataItemFSNameKey];
+        if (![[path lastPathComponent] isEqualToString:filename]) {
+          NSLog(@"path not same %@, %@" ,[path lastPathComponent], filename);
+          return; }
+        //        NSDictionary *obj = [[query results] objectAtIndex:0];
+        if ([[obj valueForKey:NSMetadataUbiquitousItemDownloadingStatusKey]
+             isEqualToString:NSMetadataUbiquitousItemDownloadingStatusCurrent]) { //file is updated
+          NSDictionary *res = [[self parseMetaQueryResult:query] objectAtIndex:idx];
+          callback(@[@NO, res ]); [query disableUpdates];
+        }
+        
+      }];
+      
+    }];
+      
+    NSError *err;
+    [[[NSFileManager alloc] init] startDownloadingUbiquitousItemAtURL:[NSURL fileURLWithPath:path] error:&err];
+    [query startQuery];
+    NSLog(@"something");
+    if(err){
+      NSLog(@"download err %@",err);
+      callback(@[[err localizedDescription]]);
+    }
+
+  });
+}
+
 RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
